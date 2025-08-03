@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- PERUBAHAN PWA: Meta tag untuk warna tema dan link ke manifest -->
+    <meta name="theme-color" content="#dc2626"/>
+    <link rel="manifest" href="manifest.json">
+
     <title>Pencari Video</title>
     <!-- Memuat Tailwind CSS untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -48,20 +53,8 @@
         </div>
 
         <div id="appContent" class="space-y-6">
-            <!-- Pilihan Sumber Diperbarui -->
-            <div class="flex justify-center items-center gap-4 sm:gap-6 text-md sm:text-lg flex-wrap">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="source" value="xnxx" class="form-radio h-5 w-5 text-red-500 bg-gray-700 border-gray-600 focus:ring-red-600" checked>
-                    <span>XNXX</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="source" value="xhamster" class="form-radio h-5 w-5 text-pink-500 bg-gray-700 border-gray-600 focus:ring-pink-600">
-                    <span>Xhamster</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="source" value="eporner" class="form-radio h-5 w-5 text-yellow-500 bg-gray-700 border-gray-600 focus:ring-yellow-600">
-                    <span>Eporner</span>
-                </label>
+            <div class="hidden">
+                <input type="radio" name="source" value="xnxx" checked>
             </div>
 
             <form id="searchForm" class="flex flex-col sm:flex-row gap-3">
@@ -101,6 +94,17 @@
     </div>
 
     <script>
+        // --- PERUBAHAN PWA: Daftarkan Service Worker ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
         const searchButton = document.getElementById('searchButton');
@@ -121,7 +125,7 @@
             const query = searchInput.value.trim();
             if (!query) return;
 
-            const selectedSource = document.querySelector('input[name="source"]:checked').value;
+            const selectedSource = 'xnxx';
 
             results.innerHTML = '';
             error.classList.add('hidden');
@@ -176,7 +180,8 @@
         });
 
         async function searchVideos(query, source) {
-            const backendUrl = `https://video-searcher-backend.onrender.com/api/${source}/search?q=${encodeURIComponent(query)}`;
+            const backendHost = window.location.hostname === '127.0.0.1' ? 'localhost' : window.location.hostname;
+            const backendUrl = `https://${backendHost}:3000/api/${source}/search?q=${encodeURIComponent(query)}`;
             const response = await fetch(backendUrl);
             if (!response.ok) {
                 const errorData = await response.json();
@@ -200,14 +205,13 @@
                 container.addEventListener('click', () => playVideo(video.videoUrl, video.title));
                 container.appendChild(img);
 
-                // PERBAIKAN: Logika pratinjau yang lebih andal
                 if (video.previewVideoUrl) {
                     const preview = document.createElement('video');
                     preview.src = video.previewVideoUrl;
                     preview.className = 'preview-video';
                     preview.muted = true;
                     preview.loop = true;
-                    preview.preload = 'none'; // Jangan preload untuk menghemat bandwidth
+                    preview.preload = 'none';
                     container.appendChild(preview);
 
                     let playPromise;
@@ -216,7 +220,7 @@
                         preview.style.display = 'block';
                         playPromise = preview.play();
                         if (playPromise !== undefined) {
-                            playPromise.catch(e => {}); // Abaikan error jika pengguna bergerak terlalu cepat
+                            playPromise.catch(e => {});
                         }
                     });
 
