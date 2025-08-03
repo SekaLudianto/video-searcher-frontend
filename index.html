@@ -180,8 +180,10 @@
         });
 
         async function searchVideos(query, source) {
-            const backendHost = window.location.hostname === '127.0.0.1' ? 'localhost' : window.location.hostname;
-            const backendUrl = `https://${backendHost}:3000/api/${source}/search?q=${encodeURIComponent(query)}`;
+            // PERBAIKAN: URL backend Render Anda sudah dimasukkan
+            const backendHost = 'https://video-searcher-backend.onrender.com';
+            const backendUrl = `${backendHost}/api/${source}/search?q=${encodeURIComponent(query)}`;
+            
             const response = await fetch(backendUrl);
             if (!response.ok) {
                 const errorData = await response.json();
