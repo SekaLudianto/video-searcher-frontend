@@ -3,15 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- PERUBAHAN PWA: Meta tag untuk warna tema dan link ke manifest -->
     <meta name="theme-color" content="#dc2626"/>
     <link rel="manifest" href="manifest.json">
-
     <title>Pencari Video</title>
-    <!-- Memuat Tailwind CSS untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Memuat Font Inter dari Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -29,19 +24,12 @@
         .fade-in { animation: fadeInAnimation 0.5s ease-in forwards; }
         @keyframes fadeInAnimation { from { opacity: 0; } to { opacity: 1; } }
         button:disabled { cursor: not-allowed; opacity: 0.6; }
-        /* Style untuk preview video */
         .thumbnail-container .preview-video {
-            display: none;
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover;
-            z-index: 5; /* Pastikan video di atas gambar */
+            display: none; position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; object-fit: cover; z-index: 5;
         }
-        .thumbnail-container .thumbnail-image {
-            position: relative;
-            z-index: 10; /* Pastikan gambar di atas video saat tidak hover */
-        }
+        .thumbnail-container .thumbnail-image { position: relative; z-index: 10; }
+        #qualityModal.hidden { display: none; }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
@@ -53,10 +41,6 @@
         </div>
 
         <div id="appContent" class="space-y-6">
-            <div class="hidden">
-                <input type="radio" name="source" value="xnxx" checked>
-            </div>
-
             <form id="searchForm" class="flex flex-col sm:flex-row gap-3">
                 <input type="text" id="searchInput" class="flex-grow bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-red-500 focus:border-red-500" placeholder="Masukkan kata kunci..." required>
                 <button type="submit" id="searchButton" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
@@ -66,7 +50,7 @@
             
             <div id="loading" class="hidden flex justify-center items-center py-8">
                 <div class="loader"></div>
-                <p id="loadingText" class="ml-4 text-gray-400">Mencari video... Ini mungkin butuh waktu lama.</p>
+                <p id="loadingText" class="ml-4 text-gray-400">Mencari video...</p>
             </div>
 
             <div id="error" class="hidden text-center bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg"></div>
@@ -74,37 +58,37 @@
             <div id="results" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
 
             <div id="videoPlayerContainer" class="hidden w-full max-w-2xl mx-auto mt-8">
-                <video id="videoPlayer" class="w-full rounded-lg shadow-lg" controls>
-                    Browser Anda tidak mendukung tag video.
-                </video>
-                <div id="customControls" class="flex justify-center gap-4 mt-4">
-                    <button id="rewindButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Mundur 5s
-                    </button>
-                    <button id="forwardButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Maju 5s
-                    </button>
-                    <button id="downloadButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Download
-                    </button>
+                <video id="videoPlayer" class="w-full rounded-lg shadow-lg" controls></video>
+                <div id="customControls" class="flex flex-wrap justify-center gap-4 mt-4">
+                    <button id="rewindButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Mundur 5s</button>
+                    <button id="forwardButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Maju 5s</button>
+                    <button id="downloadButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Download</button>
+                    <!-- PERUBAHAN: Tombol Subtitle menjadi Narasi -->
+                    <button id="narrationButton" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Putar Narasi</button>
                 </div>
-                <div id="downloadStatus" class="text-center text-sm text-gray-500 h-4 mt-2"></div>
+                <div id="statusMessages" class="text-center text-sm text-gray-500 h-4 mt-2"></div>
             </div>
         </div>
     </div>
 
+    <!-- Modal untuk Pilihan Kualitas -->
+    <div id="qualityModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 w-11/12 max-w-sm text-center">
+            <h3 class="text-lg font-bold mb-4">Pilih Kualitas Video</h3>
+            <div id="qualityOptions" class="space-y-2"></div>
+            <button id="closeModalButton" class="mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg">Batal</button>
+        </div>
+    </div>
+
     <script>
-        // --- PERUBAHAN PWA: Daftarkan Service Worker ---
+        // --- Registrasi Service Worker untuk PWA ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(registration => {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, err => {
-                    console.log('ServiceWorker registration failed: ', err);
-                });
+                navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW registered.'), err => console.log('SW registration failed: ', err));
             });
         }
 
+        // --- Referensi Elemen DOM ---
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
         const searchButton = document.getElementById('searchButton');
@@ -116,16 +100,20 @@
         const rewindButton = document.getElementById('rewindButton');
         const forwardButton = document.getElementById('forwardButton');
         const downloadButton = document.getElementById('downloadButton');
-        const downloadStatus = document.getElementById('downloadStatus');
+        const narrationButton = document.getElementById('narrationButton'); // Referensi baru
+        const statusMessages = document.getElementById('statusMessages');
+        const qualityModal = document.getElementById('qualityModal');
+        const qualityOptions = document.getElementById('qualityOptions');
+        const closeModalButton = document.getElementById('closeModalButton');
 
         let currentVideoForDownload = { url: null, title: 'video' };
+        let allVideosData = [];
 
+        // --- Event Listeners ---
         searchForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const query = searchInput.value.trim();
             if (!query) return;
-
-            const selectedSource = 'xnxx';
 
             results.innerHTML = '';
             error.classList.add('hidden');
@@ -134,14 +122,14 @@
             searchButton.disabled = true;
 
             try {
-                const responseData = await searchVideos(query, selectedSource);
-                if (responseData.videos.length === 0) {
+                const responseData = await searchVideos(query);
+                allVideosData = responseData.videos;
+                if (allVideosData.length === 0) {
                     displayError('Tidak ada video yang ditemukan.');
                 } else {
-                    displayResults(responseData.videos);
+                    displayResults(allVideosData);
                 }
             } catch (err) {
-                console.error('Error saat mencari video:', err);
                 displayError(err.message || 'Gagal terhubung ke server backend.');
             } finally {
                 loading.classList.add('hidden');
@@ -151,39 +139,66 @@
 
         rewindButton.addEventListener('click', () => { videoPlayer.currentTime -= 5; });
         forwardButton.addEventListener('click', () => { videoPlayer.currentTime += 5; });
+        closeModalButton.addEventListener('click', () => { qualityModal.classList.add('hidden'); });
 
         downloadButton.addEventListener('click', async () => {
             if (!currentVideoForDownload.url) return;
-            downloadStatus.textContent = 'Memulai unduhan...';
+            statusMessages.textContent = 'Memulai unduhan...';
             downloadButton.disabled = true;
             try {
                 const response = await fetch(currentVideoForDownload.url);
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
+                a.style.display = 'none'; a.href = url;
                 a.download = `${currentVideoForDownload.title.replace(/[^a-z0-9]/gi, '_')}.mp4`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                downloadStatus.textContent = 'Unduhan selesai!';
+                document.body.appendChild(a); a.click();
+                window.URL.revokeObjectURL(url); a.remove();
+                statusMessages.textContent = 'Unduhan selesai!';
             } catch (err) {
-                console.error('Download error:', err);
-                downloadStatus.textContent = 'Gagal mengunduh (mungkin karena CORS).';
+                statusMessages.textContent = 'Gagal mengunduh (mungkin karena CORS).';
                 window.open(currentVideoForDownload.url, '_blank');
             } finally {
                 downloadButton.disabled = false;
-                setTimeout(() => { downloadStatus.textContent = ''; }, 3000);
+                setTimeout(() => { statusMessages.textContent = ''; }, 3000);
             }
         });
 
-        async function searchVideos(query, source) {
-            // PERBAIKAN: URL backend Render Anda sudah dimasukkan
-            const backendHost = 'https://video-searcher-backend.onrender.com';
-            const backendUrl = `${backendHost}/api/${source}/search?q=${encodeURIComponent(query)}`;
-            
+        // PERUBAHAN: Event listener untuk tombol narasi
+        narrationButton.addEventListener('click', async () => {
+            if (!videoPlayer.src) return;
+            statusMessages.textContent = 'Membuat narasi audio...';
+            narrationButton.disabled = true;
+            try {
+                const backendHost = getBackendHost();
+                const response = await fetch(`${backendHost}/api/generate-narration`);
+                if (!response.ok) {
+                    throw new Error('Gagal mengambil audio dari server.');
+                }
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                audio.play();
+                statusMessages.textContent = 'Narasi diputar!';
+            } catch (err) {
+                statusMessages.textContent = 'Gagal membuat narasi.';
+            } finally {
+                narrationButton.disabled = false;
+                setTimeout(() => { statusMessages.textContent = ''; }, 3000);
+            }
+        });
+
+        // --- Functions ---
+        function getBackendHost() {
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'https://localhost:3000';
+            }
+            return 'https://video-searcher-backend.onrender.com';
+        }
+
+        async function searchVideos(query) {
+            const backendHost = getBackendHost();
+            const backendUrl = `${backendHost}/api/xnxx/search?q=${encodeURIComponent(query)}`;
             const response = await fetch(backendUrl);
             if (!response.ok) {
                 const errorData = await response.json();
@@ -194,9 +209,10 @@
 
         function displayResults(videos) {
             results.innerHTML = '';
-            videos.forEach(video => {
+            videos.forEach((video, index) => {
                 const container = document.createElement('div');
                 container.className = 'thumbnail-container relative aspect-w-16 aspect-h-9 cursor-pointer rounded-lg overflow-hidden transform hover:scale-105 transition-transform duration-300 shadow-lg fade-in';
+                container.dataset.videoIndex = index;
                 
                 const img = document.createElement('img');
                 img.src = video.thumbnailUrl;
@@ -204,7 +220,7 @@
                 img.className = 'thumbnail-image w-full h-full object-cover bg-gray-700';
                 img.onerror = () => { img.src = 'https://placehold.co/600x400/1F2D3D/FFFFFF?text=Error'; };
                 
-                container.addEventListener('click', () => playVideo(video.videoUrl, video.title));
+                container.addEventListener('click', () => openQualityModal(index));
                 container.appendChild(img);
 
                 if (video.previewVideoUrl) {
@@ -221,11 +237,8 @@
                         img.style.opacity = '0';
                         preview.style.display = 'block';
                         playPromise = preview.play();
-                        if (playPromise !== undefined) {
-                            playPromise.catch(e => {});
-                        }
+                        if (playPromise !== undefined) playPromise.catch(e => {});
                     });
-
                     container.addEventListener('mouseleave', () => {
                         if (playPromise !== undefined) {
                             playPromise.then(() => {
@@ -246,6 +259,24 @@
             });
         }
         
+        function openQualityModal(videoIndex) {
+            const video = allVideosData[videoIndex];
+            if (!video || !video.qualities) return;
+
+            qualityOptions.innerHTML = '';
+            video.qualities.forEach(quality => {
+                const button = document.createElement('button');
+                button.className = 'w-full bg-red-600 hover:bg-red-500 text-white py-2 rounded-lg';
+                button.textContent = quality.label;
+                button.onclick = () => {
+                    playVideo(quality.url, video.title);
+                    qualityModal.classList.add('hidden');
+                };
+                qualityOptions.appendChild(button);
+            });
+            qualityModal.classList.remove('hidden');
+        }
+
         function displayError(message) {
             error.textContent = message;
             error.classList.remove('hidden');
