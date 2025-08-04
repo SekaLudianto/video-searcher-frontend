@@ -57,12 +57,16 @@
             <div id="results" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
 
             <div id="videoPlayerContainer" class="hidden w-full max-w-2xl mx-auto mt-8">
-                <video id="videoPlayer" class="w-full rounded-lg shadow-lg" controls></video>
+                <!-- PERUBAHAN: Wrapper untuk video dan overlay subtitle -->
+                <div class="relative">
+                    <video id="videoPlayer" class="w-full rounded-lg shadow-lg" controls></video>
+                    <div id="subtitleOverlay" class="absolute bottom-16 sm:bottom-20 left-0 right-0 text-center text-white text-lg md:text-xl font-bold p-4 bg-black bg-opacity-50 pointer-events-none" style="text-shadow: 2px 2px 4px #000000;"></div>
+                </div>
                 <div id="customControls" class="flex flex-wrap justify-center gap-4 mt-4">
                     <button id="rewindButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Mundur 5s</button>
                     <button id="forwardButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Maju 5s</button>
                     <button id="downloadButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Download</button>
-                    <button id="narrationButton" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Putar Narasi</button>
+                    <button id="liveSubtitleButton" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Tampilkan Live Subtitle</button>
                 </div>
                 <div id="statusMessages" class="text-center text-sm text-gray-500 h-4 mt-2"></div>
             </div>
@@ -89,10 +93,12 @@
         const rewindButton = document.getElementById('rewindButton');
         const forwardButton = document.getElementById('forwardButton');
         const downloadButton = document.getElementById('downloadButton');
-        const narrationButton = document.getElementById('narrationButton');
+        const liveSubtitleButton = document.getElementById('liveSubtitleButton');
         const statusMessages = document.getElementById('statusMessages');
+        const subtitleOverlay = document.getElementById('subtitleOverlay');
 
         let currentVideoForDownload = { url: null, title: 'video' };
+        let subtitleTimeouts = [];
 
         // --- Event Listeners ---
         searchForm.addEventListener('submit', async (e) => {
@@ -147,25 +153,28 @@
             }
         });
 
-        narrationButton.addEventListener('click', async () => {
+        liveSubtitleButton.addEventListener('click', async () => {
             if (!videoPlayer.src) return;
-            statusMessages.textContent = 'Membuat narasi audio...';
-            narrationButton.disabled = true;
+            statusMessages.textContent = 'Memulai live subtitle (simulasi)...';
+            liveSubtitleButton.disabled = true;
+            subtitleOverlay.textContent = '';
+
             try {
                 const backendHost = getBackendHost();
-                const response = await fetch(`${backendHost}/api/generate-narration`);
+                const response = await fetch(`${backendHost}/api/generate-subtitle`);
                 if (!response.ok) {
-                    throw new Error('Gagal mengambil audio dari server.');
+                    throw new Error('Gagal mengambil data subtitle dari server.');
                 }
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const audio = new Audio(audioUrl);
-                audio.play();
-                statusMessages.textContent = 'Narasi diputar!';
+                const vttText = await response.text();
+                const cues = parseVTT(vttText);
+                
+                displayLiveSubtitles(cues);
+                statusMessages.textContent = 'Live subtitle dimulai!';
+
             } catch (err) {
-                statusMessages.textContent = 'Gagal membuat narasi.';
+                statusMessages.textContent = 'Gagal memulai subtitle.';
             } finally {
-                narrationButton.disabled = false;
+                liveSubtitleButton.disabled = false;
                 setTimeout(() => { statusMessages.textContent = ''; }, 3000);
             }
         });
@@ -252,18 +261,80 @@
             videoPlayerContainer.classList.remove('hidden');
             videoPlayerContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            // PERBAIKAN: Logika pemutaran video yang lebih andal
+            subtitleOverlay.textContent = '';
+            subtitleTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+
             videoPlayer.src = url;
             const playPromise = videoPlayer.play();
 
             if (playPromise !== undefined) {
                 playPromise.catch(error => {
-                    // Ini normal jika browser memblokir putar otomatis.
-                    // Pengguna masih bisa menekan tombol play pada kontrol video.
                     console.error("Gagal memutar video secara otomatis:", error);
                 });
             }
         }
+
+        // --- PERUBAHAN BARU: Fungsi untuk Live Subtitle ---
+        function parseVTT(vttContent) {
+            const lines = vttContent.split('\n').map(line => line.trim());
+            const cues = [];
+            let i = 0;
+            while (i < lines.length) {
+                if (lines[i].includes('-->')) {
+                    const timeParts = lines[i].split(' --> ');
+                    const textLines = [];
+                    i++;
+                    while (i < lines.length && lines[i] !== '') {
+                        textLines.push(lines[i]);
+                        i++;
+                    }
+                    cues.push({
+                        startTime: timeToSeconds(timeParts[0]),
+                        endTime: timeToSeconds(timeParts[1]),
+                        text: textLines.join(' ')
+                    });
+                }
+                i++;
+            }
+            return cues;
+        }
+
+        function timeToSeconds(timeString) {
+            const parts = timeString.split(':');
+            const secondsParts = parts[2].split('.');
+            return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(secondsParts[0], 10) + parseInt(secondsParts[1], 10) / 1000;
+        }
+
+        function displayLiveSubtitles(cues) {
+            subtitleTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            subtitleTimeouts = [];
+
+            const videoCurrentTime = videoPlayer.currentTime;
+
+            cues.forEach(cue => {
+                const showDelay = (cue.startTime - videoCurrentTime) * 1000;
+                const hideDelay = (cue.endTime - videoCurrentTime) * 1000;
+
+                if (showDelay >= 0) {
+                    const showTimeout = setTimeout(() => {
+                        subtitleOverlay.textContent = cue.text;
+                        subtitleOverlay.classList.add('fade-in');
+                    }, showDelay);
+                    subtitleTimeouts.push(showTimeout);
+                }
+
+                if (hideDelay >= 0) {
+                    const hideTimeout = setTimeout(() => {
+                        if (subtitleOverlay.textContent === cue.text) {
+                            subtitleOverlay.textContent = '';
+                            subtitleOverlay.classList.remove('fade-in');
+                        }
+                    }, hideDelay);
+                    subtitleTimeouts.push(hideTimeout);
+                }
+            });
+        }
+
     </script>
 </body>
 </html>
