@@ -201,7 +201,6 @@
                 img.className = 'thumbnail-image w-full h-full object-cover bg-gray-700';
                 img.onerror = () => { img.src = 'https://placehold.co/600x400/1F2D3D/FFFFFF?text=Error'; };
                 
-                // PERBAIKAN: Klik langsung memutar video
                 container.addEventListener('click', () => playVideo(video.videoUrl, video.title));
                 container.appendChild(img);
 
@@ -247,14 +246,23 @@
         }
 
         function playVideo(url, title) {
-            videoPlayer.src = url;
             currentVideoForDownload.url = url;
             currentVideoForDownload.title = title || 'video';
             
             videoPlayerContainer.classList.remove('hidden');
             videoPlayerContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            videoPlayer.load();
-            videoPlayer.play();
+
+            // PERBAIKAN: Logika pemutaran video yang lebih andal
+            videoPlayer.src = url;
+            const playPromise = videoPlayer.play();
+
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // Ini normal jika browser memblokir putar otomatis.
+                    // Pengguna masih bisa menekan tombol play pada kontrol video.
+                    console.error("Gagal memutar video secara otomatis:", error);
+                });
+            }
         }
     </script>
 </body>
