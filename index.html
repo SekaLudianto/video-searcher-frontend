@@ -29,7 +29,6 @@
             width: 100%; height: 100%; object-fit: cover; z-index: 5;
         }
         .thumbnail-container .thumbnail-image { position: relative; z-index: 10; }
-        #qualityModal.hidden { display: none; }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
@@ -63,20 +62,10 @@
                     <button id="rewindButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Mundur 5s</button>
                     <button id="forwardButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Maju 5s</button>
                     <button id="downloadButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Download</button>
-                    <!-- PERUBAHAN: Tombol Subtitle menjadi Narasi -->
                     <button id="narrationButton" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Putar Narasi</button>
                 </div>
                 <div id="statusMessages" class="text-center text-sm text-gray-500 h-4 mt-2"></div>
             </div>
-        </div>
-    </div>
-
-    <!-- Modal untuk Pilihan Kualitas -->
-    <div id="qualityModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div class="bg-gray-800 rounded-lg p-6 w-11/12 max-w-sm text-center">
-            <h3 class="text-lg font-bold mb-4">Pilih Kualitas Video</h3>
-            <div id="qualityOptions" class="space-y-2"></div>
-            <button id="closeModalButton" class="mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg">Batal</button>
         </div>
     </div>
 
@@ -100,14 +89,10 @@
         const rewindButton = document.getElementById('rewindButton');
         const forwardButton = document.getElementById('forwardButton');
         const downloadButton = document.getElementById('downloadButton');
-        const narrationButton = document.getElementById('narrationButton'); // Referensi baru
+        const narrationButton = document.getElementById('narrationButton');
         const statusMessages = document.getElementById('statusMessages');
-        const qualityModal = document.getElementById('qualityModal');
-        const qualityOptions = document.getElementById('qualityOptions');
-        const closeModalButton = document.getElementById('closeModalButton');
 
         let currentVideoForDownload = { url: null, title: 'video' };
-        let allVideosData = [];
 
         // --- Event Listeners ---
         searchForm.addEventListener('submit', async (e) => {
@@ -123,11 +108,10 @@
 
             try {
                 const responseData = await searchVideos(query);
-                allVideosData = responseData.videos;
-                if (allVideosData.length === 0) {
+                if (responseData.videos.length === 0) {
                     displayError('Tidak ada video yang ditemukan.');
                 } else {
-                    displayResults(allVideosData);
+                    displayResults(responseData.videos);
                 }
             } catch (err) {
                 displayError(err.message || 'Gagal terhubung ke server backend.');
@@ -139,7 +123,6 @@
 
         rewindButton.addEventListener('click', () => { videoPlayer.currentTime -= 5; });
         forwardButton.addEventListener('click', () => { videoPlayer.currentTime += 5; });
-        closeModalButton.addEventListener('click', () => { qualityModal.classList.add('hidden'); });
 
         downloadButton.addEventListener('click', async () => {
             if (!currentVideoForDownload.url) return;
@@ -164,7 +147,6 @@
             }
         });
 
-        // PERUBAHAN: Event listener untuk tombol narasi
         narrationButton.addEventListener('click', async () => {
             if (!videoPlayer.src) return;
             statusMessages.textContent = 'Membuat narasi audio...';
@@ -209,10 +191,9 @@
 
         function displayResults(videos) {
             results.innerHTML = '';
-            videos.forEach((video, index) => {
+            videos.forEach((video) => {
                 const container = document.createElement('div');
                 container.className = 'thumbnail-container relative aspect-w-16 aspect-h-9 cursor-pointer rounded-lg overflow-hidden transform hover:scale-105 transition-transform duration-300 shadow-lg fade-in';
-                container.dataset.videoIndex = index;
                 
                 const img = document.createElement('img');
                 img.src = video.thumbnailUrl;
@@ -220,7 +201,8 @@
                 img.className = 'thumbnail-image w-full h-full object-cover bg-gray-700';
                 img.onerror = () => { img.src = 'https://placehold.co/600x400/1F2D3D/FFFFFF?text=Error'; };
                 
-                container.addEventListener('click', () => openQualityModal(index));
+                // PERBAIKAN: Klik langsung memutar video
+                container.addEventListener('click', () => playVideo(video.videoUrl, video.title));
                 container.appendChild(img);
 
                 if (video.previewVideoUrl) {
@@ -259,24 +241,6 @@
             });
         }
         
-        function openQualityModal(videoIndex) {
-            const video = allVideosData[videoIndex];
-            if (!video || !video.qualities) return;
-
-            qualityOptions.innerHTML = '';
-            video.qualities.forEach(quality => {
-                const button = document.createElement('button');
-                button.className = 'w-full bg-red-600 hover:bg-red-500 text-white py-2 rounded-lg';
-                button.textContent = quality.label;
-                button.onclick = () => {
-                    playVideo(quality.url, video.title);
-                    qualityModal.classList.add('hidden');
-                };
-                qualityOptions.appendChild(button);
-            });
-            qualityModal.classList.remove('hidden');
-        }
-
         function displayError(message) {
             error.textContent = message;
             error.classList.remove('hidden');
