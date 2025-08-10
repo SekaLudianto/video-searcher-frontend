@@ -62,7 +62,6 @@
                     <button id="rewindButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Mundur 5s</button>
                     <button id="forwardButton" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Maju 5s</button>
                     <button id="downloadButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Download</button>
-                    <button id="narrationButton" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Putar Narasi</button>
                 </div>
                 <div id="statusMessages" class="text-center text-sm text-gray-500 h-4 mt-2"></div>
             </div>
@@ -89,7 +88,6 @@
         const rewindButton = document.getElementById('rewindButton');
         const forwardButton = document.getElementById('forwardButton');
         const downloadButton = document.getElementById('downloadButton');
-        const narrationButton = document.getElementById('narrationButton');
         const statusMessages = document.getElementById('statusMessages');
 
         let currentVideoForDownload = { url: null, title: 'video' };
@@ -147,29 +145,6 @@
             }
         });
 
-        narrationButton.addEventListener('click', async () => {
-            if (!videoPlayer.src) return;
-            statusMessages.textContent = 'Membuat narasi audio...';
-            narrationButton.disabled = true;
-            try {
-                const backendHost = getBackendHost();
-                const response = await fetch(`${backendHost}/api/generate-narration`);
-                if (!response.ok) {
-                    throw new Error('Gagal mengambil audio dari server.');
-                }
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const audio = new Audio(audioUrl);
-                audio.play();
-                statusMessages.textContent = 'Narasi diputar!';
-            } catch (err) {
-                statusMessages.textContent = 'Gagal membuat narasi.';
-            } finally {
-                narrationButton.disabled = false;
-                setTimeout(() => { statusMessages.textContent = ''; }, 3000);
-            }
-        });
-
         // --- Functions ---
         function getBackendHost() {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -180,7 +155,6 @@
 
         async function searchVideos(query) {
             const backendHost = getBackendHost();
-            // PERUBAHAN: Memanggil endpoint baru
             const backendUrl = `${backendHost}/api/missav/search?q=${encodeURIComponent(query)}`;
             const response = await fetch(backendUrl);
             if (!response.ok) {
