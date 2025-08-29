@@ -155,7 +155,7 @@
 
         async function searchVideos(query) {
             const backendHost = getBackendHost();
-            const backendUrl = `${backendHost}/api/missav/search?q=${encodeURIComponent(query)}`;
+            const backendUrl = `${backendHost}/api/eporner/search?q=${encodeURIComponent(query)}`;
             const response = await fetch(backendUrl);
             if (!response.ok) {
                 const errorData = await response.json();
